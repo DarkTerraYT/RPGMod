@@ -1,6 +1,6 @@
 ﻿using Il2CppAssets.Scripts.Unity;
 using Il2CppAssets.Scripts.Unity.UI_New.InGame;
-using RPGMod.Items.Artifacts;
+using RPGMod.Items.Relics;
 using System;
 using System.Collections.Generic;
 using System.Linq;

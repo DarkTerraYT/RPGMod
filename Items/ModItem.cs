@@ -126,7 +126,7 @@ namespace RPGMod.Items
         {
             Consumable,
             Equipment,
-            Artifact,
+            Relic,
             Unlock,
         }
 
