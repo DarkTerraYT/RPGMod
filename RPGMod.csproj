@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net6.0</TargetFramework>
+        <RootNamespace>RPGMod</RootNamespace>
+        <Configurations>Debug;Release</Configurations>
+        <Nullable>enable</Nullable>
+        <AssemblyName>RPGMod</AssemblyName>
+        <LangVersion>latest</LangVersion>
+        <Optimize>False</Optimize>
+        <DebugType>embedded</DebugType>
+        <BaseOutputPath>C:\Users\liamw\Documents\BTD6 Mod Sources\RPGMod\bin</BaseOutputPath>
+    </PropertyGroup>
+    <ItemGroup>
+      <Compile Remove="Octokit\Github.cs" />
+    </ItemGroup>
+    <ItemGroup>
+      <None Remove="Assets\BrownInsertPanelLight.png" />
+      <None Remove="Items\Icons\BigHeart.png" />
+      <None Remove="Items\Icons\LivesIconFx.png" />
+      <None Remove="Items\Icons\SilverDarts.png" />
+      <None Remove="OdysseyStar.png" />
+      <None Remove="VictoryStar.png" />
+    </ItemGroup>
+    <ItemGroup>
+        <Content Include=".github\workflows\build.yml" />
+    </ItemGroup>
+    <ItemGroup>
+      <Folder Include="Items\Equipment\" />
+    </ItemGroup>
+    <ItemGroup>
+      <None Include="Octokit\Github.cs" />
+    </ItemGroup>
+
+	<Import Project="..\btd6.targets" />
+</Project>
