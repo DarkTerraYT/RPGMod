@@ -18,6 +18,43 @@ namespace RPGMod
             ReferenceLoopHandling = ReferenceLoopHandling.Ignore,
         };
 
+        public static void SaveRpgGameData(RpgGameData data)
+        {
+            if (!Directory.Exists(SavePath))
+            {
+                Directory.CreateDirectory(SavePath);
+            }
+
+            if (!data.IgnoreSave)
+            {
+                if (SandboxFlag || data.ModeName != "Sandbox")
+                {
+                    ModHelper.Log<RPGMod>("Tried saving data for a sandbox game!");
+                }
+                else
+                {
+                    string serializedData = JsonConvert.SerializeObject(data, Settings);
+                    string fileName = data.MapName + ".json";
+
+                    string filePath = Path.Combine(SavePath, fileName);
+                    try
+                    {
+                        if (File.Exists(filePath))
+                        {
+                            File.Delete(filePath);
+                        }
+
+                        File.WriteAllText(filePath, serializedData);
+                    }
+                    catch (Exception e)
+                    {
+                        ModHelper.Error<RPGMod>("Error saving " + fileName + "!");
+                        ModHelper.Error<RPGMod>(e);
+                    }
+                }
+            }
+        }
+
         /// <summary>
         /// Saves the given <see cref="RpgGameData"/>
         /// </summary>
@@ -32,41 +69,9 @@ namespace RPGMod
         /// <param name="dataToSave"><see cref="RpgGameData"/> to save.</param>
         public static void SaveRpgGameData(List<RpgGameData> dataToSave)
         {
-            if (!Directory.Exists(SavePath))
-            {
-                Directory.CreateDirectory(SavePath);
-            }
-
             foreach (var data in dataToSave)
             {
-                if (!data.IgnoreSave)
-                {
-                    if (SandboxFlag && PreventSandboxSaving)
-                    {
-                        ModHelper.Log<RPGMod>("Tried saving data for a sandbox game!");
-                    }
-                    else
-                    {
-                        string serializedData = JsonConvert.SerializeObject(data, Settings);
-                        string fileName = data.MapName + "_" + data.ModeName + "_" + data.Difficuly + ".json";
-
-                        string filePath = Path.Combine(SavePath, fileName);
-                        try
-                        {
-                            if (File.Exists(filePath))
-                            {
-                                File.Delete(filePath);
-                            }
-
-                            File.WriteAllText(filePath, serializedData);
-                        }
-                        catch (Exception e)
-                        {
-                            ModHelper.Error<RPGMod>("Error saving " + fileName + "!");
-                            ModHelper.Error<RPGMod>(e);
-                        }
-                    }
-                }
+                SaveRpgGameData(data);
             }
         }
 
@@ -106,10 +111,13 @@ namespace RPGMod
 
                 foreach (var fileName in Directory.GetFiles(SavePath))
                 {
-                    var data = GetSavedRpgGameData(fileName);
+                    if (Path.GetExtension(fileName) == ".json")
+                    {
+                        var data = GetSavedRpgGameData(fileName);
 
-                    if (data != null)
-                    { foundGameData.Add(data); }
+                        if (data != null)
+                        { foundGameData.Add(data); }
+                    }
                 }
 
                 return foundGameData;
@@ -131,42 +139,25 @@ namespace RPGMod
 
         public static void SaveRpgUserData()
         {
-            var ruds = new RpgUserDataSave()
-            {
-                ui = RpgUserData.UniversalItems,
-                hue1 = RpgUserData.HasUnitedXP,
-                hue2 = RpgUserData.HasUniversalXP,
-                ue1 = RpgUserData.UnitedXP,
-                ue2 = RpgUserData.UniversalXP,
-                uem1 = RpgUserData.UnitedXPMutliper,
-                uem2 = RpgUserData.UniversalXPMutliper
-            };
+            var json = JsonConvert.SerializeObject(Player, Formatting.Indented);
 
-            var json = JsonConvert.SerializeObject(ruds, Formatting.Indented);
-
-            if (File.Exists(Path.Combine(SavePath, "Rud.json")))
+            if (File.Exists(Path.Combine(SavePath, "Player.player")))
             {
-                File.Delete(Path.Combine(SavePath, "Rud.json"));
+                File.Delete(Path.Combine(SavePath, "Player.player"));
             }
 
-            File.WriteAllText(Path.Combine(SavePath, "Rud.json"), json);
+            File.WriteAllText(Path.Combine(SavePath, "Player.player"), json);
         }
 
         public static void LoadRpgUserData()
         {
-            if (File.Exists(Path.Combine(SavePath, "Rud.json")))
+            if (File.Exists(Path.Combine(SavePath, "Player.player")))
             {
-                var json = File.ReadAllText(Path.Combine(SavePath, "Rud.json"));
+                var json = File.ReadAllText(Path.Combine(SavePath, "Player.player"));
 
-                var ruds = JsonConvert.DeserializeObject<RpgUserDataSave>(json);
+                var ruds = JsonConvert.DeserializeObject<RpgUserData>(json);
 
-                RpgUserData.UniversalXPMutliper = ruds.uem2;
-                RpgUserData.UnitedXPMutliper = ruds.uem1;
-                RpgUserData.HasUnitedXP = ruds.hue1;
-                RpgUserData.HasUniversalXP = ruds.hue2;
-                RpgUserData.UnitedXP = ruds.ue1;
-                RpgUserData.SetUniversalXP(ruds.ue2);
-                RpgUserData.UniversalItems = ruds.ui;
+                Player = ruds;
             }
         }
     }

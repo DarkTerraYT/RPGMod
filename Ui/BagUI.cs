@@ -240,7 +240,7 @@ namespace RPGMod.Ui
                         {
                             amount = item.Amount;
                         }
-                        else 
+                        else
                         {
                             amount = input;
                         }

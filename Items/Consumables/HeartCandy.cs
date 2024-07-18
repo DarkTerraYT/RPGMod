@@ -24,7 +24,7 @@ namespace RPGMod.Items.Consumables
 
         public override void OnItemUse(Game game, InGame inGame, int amount)
         {
-            if(inGame.GetHealth() >= inGame.GetMaxHealth())
+            if (inGame.GetHealth() >= inGame.GetMaxHealth())
             {
                 inGame.SetHealth(inGame.GetMaxHealth());
                 if (!PopupOpen)
@@ -32,13 +32,13 @@ namespace RPGMod.Items.Consumables
                     PopupScreen.instance.SafelyQueue(screen => { screen.ShowOkPopup("You've already reached max health!", new Action(() => { ChangeAmount(amount); PopupOpen = false; if (BagUI.InfoPanel != null) { BagUI.InfoPanel.GetDescendent<ModHelperText>("Text_Amount").SetText(Amount.ToString()); } })); PopupOpen = true; });
                 }
             }
-            else if(inGame.GetHealth() + 10 * amount > inGame.GetMaxHealth())
+            else if (inGame.GetHealth() + 10 * amount > inGame.GetMaxHealth())
             {
                 int amountToUse = (int)(inGame.GetMaxHealth() - inGame.GetHealth()) / 10;
                 inGame.SetHealth(inGame.GetMaxHealth());
                 ChangeAmount(amount - amountToUse);
             }
-            else 
+            else
             {
                 inGame.AddHealth(10 * amount);
             }

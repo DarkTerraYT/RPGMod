@@ -1,12 +1,6 @@
-﻿using Il2CppAssets.Scripts.Data;
-using Il2CppAssets.Scripts.Unity;
+﻿using Il2CppAssets.Scripts.Unity;
 using Il2CppAssets.Scripts.Unity.UI_New.InGame;
-using RPGMod.Items.Unlocks;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using RPGMod.Items.Universal;
 
 namespace RPGMod.Items.Relics
 {
@@ -20,10 +14,10 @@ namespace RPGMod.Items.Relics
 
         public override string Description => "Provides 25% Higher EXP Gain";
 
-        public override int Max => 1; 
+        public override int Max => 1;
     }
 
-    public class ExpNecklaceShop : ShopEntry<ExpNecklace, MasteryStar>
+    public class ExpNecklaceShop : ShopEntry<ExpNecklace>
     {
         protected override int Price => 25000;
 

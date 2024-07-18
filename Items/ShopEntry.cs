@@ -1,6 +1,5 @@
 ﻿using BTD_Mod_Helper.Api;
 using BTD_Mod_Helper.Extensions;
-using Il2CppAssets.Scripts.Simulation.Towers.Behaviors.Abilities.Behaviors;
 using Il2CppAssets.Scripts.Unity;
 using Il2CppAssets.Scripts.Unity.UI_New.InGame;
 using Il2CppAssets.Scripts.Unity.UI_New.Popups;
@@ -21,10 +20,10 @@ namespace RPGMod.Items
 
         public ShopEntry() { }
 
-        public override void Register() 
+        public override void Register()
         {
             Stock = Stock_;
-            Cost = Price; 
+            Cost = Price;
             ShowInShop = ShowedByDefault;
         }
 
@@ -34,7 +33,7 @@ namespace RPGMod.Items
 
             Item.Reset();
 
-            if(AutoGiveItem)
+            if (AutoGiveItem)
             {
                 Item.ChangeAmount(1);
             }
@@ -48,7 +47,7 @@ namespace RPGMod.Items
 
         public bool ShowInShop = true;
 
-        protected virtual bool ShowedByDefault => UnlockRound > 0;
+        protected virtual bool ShowedByDefault => UnlockRound == 0;
 
         protected virtual int Stock_ => -1;
 
@@ -69,14 +68,14 @@ namespace RPGMod.Items
 
         public virtual void OnItemBuy(Game game, InGame inGame, int amount)
         {
-        
+
         }
 
         public void Buy(Game game, InGame inGame, int amount = 1)
         {
             int totalCost = Price;
 
-            for(int i = 1; i < amount; i++)
+            for (int i = 1; i < amount; i++)
             {
                 totalCost = (int)(totalCost * CostMultiplier);
             }
@@ -91,14 +90,18 @@ namespace RPGMod.Items
 
                 inGame.AddCash(totalCost);
 
-                if (!Item.Universal || (Item.Universal && !SandboxFlag))
+                if (Item.Universal && !SandboxFlag)
                 {
                     OnItemBuy(game, inGame, amount);
+                    Player.UpdateItemData(Item);
+                }
+                else
+                {
+                    OnItemBuy(game, inGame, amount);
+                    currData.ModifyItemData(Item);
                 }
 
-                currData.ModifyItemData(Item);
-
-                if(Stock_ > 0)
+                if (Stock_ > 0)
                 {
                     Stock -= amount;
                 }

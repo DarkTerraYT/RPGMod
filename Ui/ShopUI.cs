@@ -1,5 +1,4 @@
-﻿using BTD_Mod_Helper;
-using BTD_Mod_Helper.Api;
+﻿using BTD_Mod_Helper.Api;
 using BTD_Mod_Helper.Api.Components;
 using BTD_Mod_Helper.Api.Enums;
 using BTD_Mod_Helper.Extensions;
@@ -20,7 +19,7 @@ namespace RPGMod.Ui
     public class ShopUI : MonoBehaviour
     {
         static ModHelperPanel? BuyPanel;
-        
+
         public static ShopUI? instance;
 
         static List<ModHelperButton> ItemButtons = [];
@@ -91,10 +90,10 @@ namespace RPGMod.Ui
 
             ModHelperScrollPanel scroll = panel.AddScrollPanel(new("Panel_RPGMod_Shop_Contents", 0, 0, 1600, 1200), RectTransform.Axis.Vertical, VanillaSprites.BrownInsertPanelDark, 30, 100);
 
-            List<ShopEntry> items_ = ModContent.GetContent<ShopEntry>().FindAll(entry => (entry.Item.Amount < entry.Item.Max || entry.Item.Max == -1) && entry.Stock != -1 && entry.Stock > 0 && entry.ShowInShop);
+            List<ShopEntry> items_ = ModContent.GetContent<ShopEntry>().FindAll(entry => (entry.Item.Amount < entry.Item.Max || entry.Item.Max == -1) && (entry.Stock == -1 || entry.Stock > 0) && entry.ShowInShop);
             List<ShopEntry> items = [];
 
-            foreach(var entry in items_)
+            foreach (var entry in items_)
             {
                 if (entry.RequiredItems.All(item => item.Amount > 0) || entry.RequiredItems.Count == 0)
                 {
@@ -134,7 +133,7 @@ namespace RPGMod.Ui
 
                             var ico = btn.AddImage(new("Item_Icon" + item, InfoPreset.FillParent), item.Icon);
 
-                            var text = panel_.AddText(new("Text_Price_" + item.Name, x, -75, 100, 150), item.Cost.ToString());
+                            var text = panel_.AddText(new("Text_Price_" + item.Name, x, -75, 100, 150), "$" + item.Cost.ToString());
                             text.Text.color = new(255, 0, 0);
                         }
                         else
@@ -146,7 +145,7 @@ namespace RPGMod.Ui
 
                             var btn = ico.AddImage(new("Button_Buy_" + item, InfoPreset.FillParent), item.Icon);
 
-                            var text = panel_.AddText(new("Text_Price_" + item.Name, x, -75, 100, 150), item.Cost.ToString());
+                            var text = panel_.AddText(new("Text_Price_" + item.Name, x, -75, 100, 150), "$" + item.Cost.ToString());
                             text.Text.color = new(0, 255, 0);
                         }
 
@@ -174,7 +173,7 @@ namespace RPGMod.Ui
 
         private ModHelperPanel OpenBuyPanel(ShopEntry item, ModHelperPanel shopPanel)
         {
-            if(BuyPanel != null)
+            if (BuyPanel != null)
             {
                 Destroy(BuyPanel.gameObject);
                 BuyPanel = null;
@@ -200,7 +199,7 @@ namespace RPGMod.Ui
             name.Text.fontSizeMax = 100;
             name.Text.enableAutoSizing = true;
 
-            if(item.Item.Universal)
+            if (item.Item.Universal)
             {
                 var universalTextIcon = panel.AddImage(new("Icon_Universal", 0, 450, 700, 88.2278800101f /* Perfect ratio! (7.934:1) */), ModContent.GetTextureGUID<RPGMod>("UniversalText"));
             }
@@ -231,19 +230,19 @@ namespace RPGMod.Ui
                         Destroy(BuyPanel.gameObject);
                         BuyPanel = null;
                     }
-                    if(item.Item.Max <= item.Item.Amount)
+                    if (item.Item.Max <= item.Item.Amount)
                     {
                         instance?.CreateShopMenu();
                     }
-                    else if(item.Stock < 1 && item.Stock != -1)
+                    else if (item.Stock < 1 && item.Stock != -1)
                     {
                         instance?.CreateShopMenu();
                     }
-                    else if(item.Stock == 1 && item.Stock != -1)
+                    else if (item.Stock == 1 && item.Stock != -1)
                     {
                         instance?.OpenBuyPanel(item, shopPanel);
                     }
-                    else if(item.Item.Amount == item.Item.Max - 1)
+                    else if (item.Item.Amount == item.Item.Max - 1)
                     {
                         instance?.OpenBuyPanel(item, shopPanel);
                     }
@@ -253,7 +252,7 @@ namespace RPGMod.Ui
 
                 int _ = item.Cost;
 
-                for(int i = 1; i < amount; i++)
+                for (int i = 1; i < amount; i++)
                 {
                     _ = (int)(item.Cost * item.CostMultiplier);
                 }
@@ -270,7 +269,7 @@ namespace RPGMod.Ui
                     {
                         int totalPrice = item.Cost;
 
-                        for(int i = 1; i < input; i++)
+                        for (int i = 1; i < input; i++)
                         {
                             totalPrice = (int)(totalPrice * item.CostMultiplier);
                         }
@@ -278,7 +277,7 @@ namespace RPGMod.Ui
                         if (totalPrice > InGame.instance.bridge.GetCash())
                         {
                             totalPrice = item.Cost;
-                            while(totalPrice < InGame.instance.bridge.GetCash())
+                            while (totalPrice < InGame.instance.bridge.GetCash())
                             {
                                 totalPrice = (int)(totalPrice * item.CostMultiplier);
                                 amount++;

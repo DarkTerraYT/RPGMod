@@ -1,5 +1,6 @@
 ﻿using BTD_Mod_Helper.Api;
 using BTD_Mod_Helper.Extensions;
+using Il2CppAssets.Scripts.Unity.UI_New.InGame;
 using MelonLoader;
 using System;
 using UnityEngine;
@@ -21,6 +22,8 @@ namespace RPGMod.Ui
 
         public static void CreateQuestButton()
         {
+            UiRect = InGame.instance.mapRect;
+
             if (QuestUI.instance != null)
             {
                 QuestUI.instance.Close();

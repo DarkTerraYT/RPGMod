@@ -1,11 +1,5 @@
 ﻿using Il2CppAssets.Scripts.Unity;
 using Il2CppAssets.Scripts.Unity.UI_New.InGame;
-using RPGMod.Items.Relics;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace RPGMod.Items.Universal
 {
@@ -24,11 +18,15 @@ namespace RPGMod.Items.Universal
 
     internal class UniversalStarShop : ShopEntry<UniversalStar, StarsOfUnity>
     {
-        protected override int Price => 900000;
+        protected override int Price => 5000000;
+
+        protected override bool ShowedByDefault => false;
+
+        public override int UnlockRound => 119;
 
         public override void OnItemBuy(Game game, InGame inGame, int amount)
         {
-            RpgUserData.HasUniversalXP = true;
+            Player.HasUniversalXP = true;
         }
     }
 }

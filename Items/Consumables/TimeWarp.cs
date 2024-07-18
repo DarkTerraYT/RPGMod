@@ -13,11 +13,9 @@ namespace RPGMod.Items.Consumables
 
         public override int Max => 3;
 
-        public override int StartAmount => 1;
-
         public override void OnItemUse(Game game, InGame inGame, int amount)
         {
-            for(int i = 0; i < amount; i++)
+            for (int i = 0; i < amount; i++)
             {
                 inGame.bridge.SetRound(inGame.bridge.GetCurrentRound() + 5);
             }

@@ -1,30 +1,42 @@
+global using static RPGMod.RpgUserData;
+
 using BTD_Mod_Helper;
 using BTD_Mod_Helper.Api;
 using BTD_Mod_Helper.Api.Components;
 using BTD_Mod_Helper.Api.Enums;
 using BTD_Mod_Helper.Api.ModOptions;
+using BTD_Mod_Helper.Api.Towers;
 using BTD_Mod_Helper.Extensions;
 using HarmonyLib;
+using Il2CppAssets.Scripts.Models;
 using Il2CppAssets.Scripts.Models.Towers;
+using Il2CppAssets.Scripts.Models.Towers.Behaviors.Abilities;
+using Il2CppAssets.Scripts.Models.Towers.Behaviors.Abilities.Behaviors;
+using Il2CppAssets.Scripts.Models.TowerSets;
 using Il2CppAssets.Scripts.Simulation;
 using Il2CppAssets.Scripts.Simulation.Bloons;
+using Il2CppAssets.Scripts.Simulation.Input;
 using Il2CppAssets.Scripts.Simulation.Towers;
 using Il2CppAssets.Scripts.Simulation.Towers.Projectiles;
 using Il2CppAssets.Scripts.Unity;
+using Il2CppAssets.Scripts.Unity.Bridge;
+using Il2CppAssets.Scripts.Unity.Menu;
 using Il2CppAssets.Scripts.Unity.UI_New.InGame;
 using Il2CppAssets.Scripts.Unity.UI_New.Popups;
+using Il2CppAssets.Scripts.Utils;
+using Il2CppInterop.Runtime.InteropTypes.Arrays;
 using MelonLoader;
 using MelonLoader.Utils;
-using Octokit;
 using RPGMod;
 using RPGMod.Items;
+using RPGMod.Items.Universal;
 using RPGMod.Quests;
 using RPGMod.Quests.Steps;
 using RPGMod.Ui;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Text.Json.Serialization;
+using System.Linq;
 using UnityEngine;
 using static Il2CppAssets.Scripts.Simulation.Simulation;
 
@@ -39,7 +51,9 @@ public class RPGMod : BloonsTD6Mod
 
     public static List<string> TowerIds = new(9999999);
 
-    public static int MaxLevel = 65;
+    public static int MaxLevel { get => MaxLevel_; }
+
+    internal static int MaxLevel_ = 65;
 
     public static string LastLoadedMap = "";
 
@@ -51,29 +65,22 @@ public class RPGMod : BloonsTD6Mod
 
     public static ModHelperPanel? MasteryPanel;
 
-    bool cheatMenuOpen = false;
-
-    internal class Players 
-    {
-        [JsonIgnore]
-        public Players? instance;
-
-        public List<>
-    }
-
-
-    public static void UpdatePlayers()
-    {
-        Octokit.rest
-    }
-
     public static List<TowerModel> BaseTowerModels = [];
     public static List<TowerModel> LeveledTowers = [];
     public static List<TowerModel> ModifiedTowerModels = [];
 
+    internal static Action Blank = () => { };
+
     public static bool SandboxFlag = false;
 
     public static string SavePath => Path.Combine(MelonEnvironment.ModsDirectory, "DarkTerra", "RPGMod");
+    public static string TowerIconPath => Path.Combine(SavePath, "ModTowerIcons");
+
+    internal static Action Button(Action onClick)
+    {
+        Action action = new(() => { MenuManager.instance.buttonClickSound.Play(); onClick.Invoke(); });
+        return action;
+    }
 
     public override void OnApplicationStart()
     {
@@ -81,25 +88,9 @@ public class RPGMod : BloonsTD6Mod
         JsonHelper.SaveRpgUserData();
     }
 
-    public static readonly ModSettingBool PreventSandboxSaving = new(true)
-    {
-        description = "Stop saving on sandbox? (Tip: On sandbox you can press insert to add tower levels)"
-    };
-
-    public static Color BlatantFavortism(string playerName) 
-    {
-        
-    }
-
     public override void OnMainMenu()
     {
-        RpgUserData.PlayerName = Game.instance.GetPlayerLiNKAccount().DisplayName;
-
-        if(RpgUserData.PlayerName == "Liam-Man")
-        {
-            RpgUserData.HasUnitedXP = true;
-            RpgUserData.HasUniversalXP = true;
-        }
+        Player.PlayerName = Game.instance.GetPlayerLiNKAccount().DisplayName;
     }
 
     [HarmonyPatch(typeof(InGame), nameof(InGame.StartMatch))]
@@ -109,32 +100,42 @@ public class RPGMod : BloonsTD6Mod
         [HarmonyPostfix]
         public static void Postfix(InGame __instance, ref bool wasSaveOverwritten)
         {
-            UiRect = __instance.mapRect;
+            SandboxFlag = false;
 
             bool saveFound = false;
 
             if (!wasSaveOverwritten)
             {
-                List<Tuple<string, string, string>> savedGames = [];
-                savedGames.Clear();
                 foreach (var gameData in JsonHelper.GetSavedRpgGameData())
                 {
-                    savedGames.Add(new(gameData.MapName, gameData.ModeName, gameData.Difficuly));
-                    if (__instance.GetGameModel().map.mapName == gameData.MapName & __instance.GetGameModel().gameMode == gameData.ModeName & gameData.Difficuly == __instance.SelectedDifficulty & __instance.bridge.GetCurrentRound() == gameData.Round)
+                    if (__instance.GetGameModel().map.mapName == gameData.MapName)
                     {
                         currData = gameData;
                         saveFound = true;
-                        
-                        foreach(var item in ModContent.GetContent<ModItem>())
+
+                        foreach (var item in ModContent.GetContent<ModItem>())
                         {
                             item.LoadAmountFromSave();
                         }
 
-                        foreach(var entry in ModContent.GetContent<ShopEntry>())
+                        if (!currData.GetBoolStat("Mastery").Value)
                         {
-                            foreach((string key, int stock) in currData.Stock)
+                            currData.GetBoolStat("Mastery").Value = Player.UnlockedMasteryForever;
+                        }
+
+                        foreach (var data in currData.XPData)
+                        {
+                            if (Player.UnitedXP.ContainsKey(data.BaseId) && currData.UnitedXPGainedThisGame.ContainsKey(data.BaseId))
                             {
-                                if(entry.Name == key)
+                                data.XP += Player.UnitedXP[data.BaseId] - currData.UnitedXPGainedThisGame[data.BaseId] + Player.UniversalXP - currData.UniversalXPGainedThisGame;
+                            }
+                        }
+
+                        foreach (var entry in ModContent.GetContent<ShopEntry>())
+                        {
+                            foreach ((string key, int stock) in currData.Stock)
+                            {
+                                if (entry.Name == key)
                                 {
                                     entry.Stock = stock;
                                 }
@@ -144,17 +145,15 @@ public class RPGMod : BloonsTD6Mod
                         break;
                     }
                 }
-                if (!savedGames.Contains(new(__instance.GetGameModel().map.mapName, __instance.GetGameModel().gameMode, __instance.SelectedDifficulty)))
-                { 
-                    foreach(var item in ModContent.GetContent<ModItem>())
+                if (!saveFound)
+                {
+                    foreach (var item in ModContent.GetContent<ModItem>())
                     {
                         item.Reset();
                     }
 
-                    RpgGameData data = new(__instance.GetGameModel().map.mapName, __instance.GetGameModel().gameMode, __instance.SelectedDifficulty, TowerXPData.CreateTowerXPData(Game.instance.model.towers.ToList().FindAll(tower => !tower.isSubTower)));
-                    currData = data;
+                    currData = RpgGameData.Create(__instance);
                     //ModHelper.Log<RPGMod>($"Created Data for map {__instance.GetGameModel().map.mapName} with the {__instance.GetGameModel().gameMode} game mode on {__instance.SelectedDifficulty}");
-                    JsonHelper.SaveRpgGameData(data);
                 }
             }
             else
@@ -164,10 +163,8 @@ public class RPGMod : BloonsTD6Mod
                     item.Reset();
                 }
 
-                RpgGameData data = new(__instance.GetGameModel().map.mapName, __instance.GetGameModel().gameMode, __instance.SelectedDifficulty, TowerXPData.CreateTowerXPData(Game.instance.model.towers.ToList().FindAll(tower => !tower.isSubTower)));
-                currData = data;
+                currData = RpgGameData.Create(__instance);
                 //ModHelper.Log<RPGMod>($"Reset Data for map {__instance.GetGameModel().map.mapName} with the {__instance.GetGameModel().gameMode} game mode on {__instance.SelectedDifficulty}");
-                JsonHelper.SaveRpgGameData(data);
             }
             if (!saveFound)
             {
@@ -176,13 +173,11 @@ public class RPGMod : BloonsTD6Mod
                     item.Reset();
                 }
 
-                RpgGameData data = new(__instance.GetGameModel().map.mapName, __instance.GetGameModel().gameMode, __instance.SelectedDifficulty, TowerXPData.CreateTowerXPData(Game.instance.model.towers.ToList().FindAll(tower => !tower.isSubTower)));
-                currData = data;
+                currData = RpgGameData.Create(__instance);
                 //ModHelper.Log<RPGMod>($"Reset Data for map {__instance.GetGameModel().map.mapName} with the {__instance.GetGameModel().gameMode} game mode on {__instance.SelectedDifficulty}");
-                JsonHelper.SaveRpgGameData(data);
             }
 
-            if (__instance.GetGameModel().gameMode == "Sandbox")
+            if (__instance.GetGameModel().gameMode == GameModeType.Sandbox)
             {
                 currData.GetBoolStat("Mastery").Value = true;
                 SandboxFlag = true;
@@ -192,10 +187,14 @@ public class RPGMod : BloonsTD6Mod
                 SandboxFlag = false;
             }
 
+            Save();
+
             QuestUI.CreateQuestButton();
             MasteryUI.CreateMasteryButton(currData.XPData);
             BagUI.CreateBagBtn();
             ShopUI.CreateShopBtn();
+
+            //currData.Update();
         }
     }
 
@@ -224,9 +223,14 @@ public class RPGMod : BloonsTD6Mod
         {
             currData.Items = items;
             currData.Stock = stock;
-            RpgUserData.UniversalItems = uniItems;
+            Player.UniversalItems = uniItems;
             JsonHelper.SaveRpgGameData(currData);
             JsonHelper.SaveRpgUserData();
+            ModHelper.Log<RPGMod>("Saved!!");
+        }
+        else
+        {
+            ModHelper.Log<RPGMod>("Sandbox!!");
         }
     }
 
@@ -238,14 +242,14 @@ public class RPGMod : BloonsTD6Mod
 
         int itemsFound = 0;
 
-        foreach(var entry in ModContent.GetContent<ShopEntry>())
+        foreach (var entry in ModContent.GetContent<ShopEntry>())
         {
-            if(entry.UnlockRound > 0)
+            if (entry.UnlockRound > 0)
             {
-                if (entry.UnlockRound == InGame.instance.bridge.GetCurrentRound())
+                if (entry.UnlockRound <= InGame.instance.bridge.GetCurrentRound() && !entry.ShowInShop)
                 {
                     itemsFound++;
-                    if(itemsFound == 1)
+                    if (itemsFound == 1)
                     {
                         unlockedItems += entry.Item.ItemName;
                     }
@@ -253,6 +257,8 @@ public class RPGMod : BloonsTD6Mod
                     {
                         unlockedItems += ", " + entry.Item.ItemName;
                     }
+
+                    entry.ShowInShop = true;
                 }
             }
         }
@@ -262,7 +268,7 @@ public class RPGMod : BloonsTD6Mod
             PopupScreen.instance.SafelyQueue(screen => screen.ShowOkPopup(unlockedItems + "!"));
         }
     }
-    
+
     public override void OnRoundStart()
     {
         Save();
@@ -291,9 +297,27 @@ public class RPGMod : BloonsTD6Mod
 
     public override void OnTitleScreen()
     {
-        BaseTowerModels = Game.instance.model.towers.ToList().FindAll(tm => !tm.isSubTower).Duplicate();
+        List<string> safeBaseTowerIds = Helpers.ValidBaseTowerNames().ToList();
+        BaseTowerModels = Game.instance.model.towers.Duplicate().ToList().FindAll(tm => safeBaseTowerIds.Any(id => id == tm.baseId) && !tm.isSubTower);
         LeveledTowers = BaseTowerModels.Duplicate();
         ModifiedTowerModels = BaseTowerModels.Duplicate();
+
+        Player.LoadItemsFromSave();
+        var ss1 = ModContent.GetInstance<StarSeal1Shop>();
+        if (ss1.Item.Amount > 0)
+        {
+            MaxLevel_ += 5;
+        }
+        var ss2 = ModContent.GetInstance<StarSeal2Shop>();
+        if (ss2.Item.Amount > 0)
+        {
+            MaxLevel_ += 5;
+        }
+        var ss3 = ModContent.GetInstance<StarSeal3Shop>();
+        if (ss3.Item.Amount > 0)
+        {
+            MaxLevel_ += 5;
+        }
     }
 
     public override void OnRestart()
@@ -323,11 +347,11 @@ public class RPGMod : BloonsTD6Mod
             item.addedLvl50Badge = false;
             item.addedMaxLvlBadge = false;
         }
-        foreach(var item in ModContent.GetContent<ModItem>()) 
+        foreach (var item in ModContent.GetContent<ModItem>())
         {
             item.Reset();
         }
-        foreach(var item in ModContent.GetContent<ShopEntry>())
+        foreach (var item in ModContent.GetContent<ShopEntry>())
         {
             item.Reload();
         }
@@ -390,7 +414,7 @@ public class RPGMod : BloonsTD6Mod
                     {
                         var xpData = currData.XPData.Find(data => data.BaseId == tower.towerModel.baseId);
 
-                        AddXP(tower, 4 * Math.Truncate(amount / 20));
+                        AddXP(tower, 4 * amount / 20);
                     }
                 }
             }
@@ -455,24 +479,24 @@ public class RPGMod : BloonsTD6Mod
 
             if (!SandboxFlag)
             {
-                if (RpgUserData.HasUniversalXP)
+                if (Player.HasUniversalXP)
                 {
-                    RpgUserData.AddUniversalXP(total * RpgUserData.UniversalXPMutliper);
+                    Player.AddUniversalXP(total * Player.UniversalXPMutliper);
                 }
-                if (RpgUserData.HasUnitedXP)
+                if (Player.HasUnitedXP)
                 {
-                    if (RpgUserData.UnitedXP.ContainsKey(tower.towerModel.baseId))
+                    if (Player.UnitedXP.ContainsKey(tower.towerModel.baseId))
                     {
-                        RpgUserData.UnitedXP[tower.towerModel.baseId] += total * RpgUserData.UnitedXPMutliper;
+                        Player.UnitedXP[tower.towerModel.baseId] += total * Player.UnitedXPMutliper;
                     }
                     else
                     {
-                        RpgUserData.UnitedXP.Add(tower.towerModel.baseId, 0);
-                        RpgUserData.UnitedXP[tower.towerModel.baseId] += total * RpgUserData.UnitedXPMutliper;
+                        Player.UnitedXP.Add(tower.towerModel.baseId, 0);
+                        Player.UnitedXP[tower.towerModel.baseId] += total * Player.UnitedXPMutliper;
                     }
                 }
             }
-            
+
             xpData.XP += total;
             xpData.TotalXP += total;
 
@@ -502,7 +526,7 @@ public class RPGMod : BloonsTD6Mod
             {
                 double multi = totalAmount;
                 double xpToAdd = 1;
-                if(totalAmount > __instance.health)
+                if (totalAmount > __instance.health)
                 {
                     multi = __instance.health;
                 }
@@ -513,7 +537,7 @@ public class RPGMod : BloonsTD6Mod
 
                 xpToAdd *= multi;
 
-                AddXP(tower, Math.Truncate(xpToAdd));
+                AddXP(tower, xpToAdd);
             }
             else
             {

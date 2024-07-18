@@ -1,26 +1,29 @@
-﻿using BTD_Mod_Helper.Extensions;
-using Il2CppAssets.Scripts.Models.Towers.Behaviors.Abilities.Behaviors;
-using Il2CppAssets.Scripts.Models.Towers.Behaviors;
-using Il2CppAssets.Scripts.Models.Towers.Filters;
-using Il2CppAssets.Scripts.Models.Towers.Projectiles.Behaviors;
-using Il2CppAssets.Scripts.Models.Towers.Projectiles;
+﻿using BTD_Mod_Helper;
+using BTD_Mod_Helper.Api;
+using BTD_Mod_Helper.Extensions;
 using Il2CppAssets.Scripts.Models.Towers;
+using Il2CppAssets.Scripts.Models.Towers.Behaviors;
+using Il2CppAssets.Scripts.Models.Towers.Behaviors.Abilities.Behaviors;
+using Il2CppAssets.Scripts.Models.Towers.Filters;
+using Il2CppAssets.Scripts.Models.Towers.Projectiles;
+using Il2CppAssets.Scripts.Models.Towers.Projectiles.Behaviors;
+using Il2CppAssets.Scripts.Simulation.Towers;
+using Il2CppAssets.Scripts.Unity;
+using Il2CppAssets.Scripts.Unity.UI_New.InGame;
 using Newtonsoft.Json;
+using RPGMod.Items;
 using RPGMod.Ui;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Il2CppAssets.Scripts.Simulation.Towers;
-using RPGMod.Items;
-using BTD_Mod_Helper.Api;
-using Il2CppAssets.Scripts.Unity;
-using Il2CppAssets.Scripts.Unity.UI_New.InGame;
+using UnityEngine;
 
 namespace RPGMod
 {
     public class NumberStat(string name, double defaultValue, double value)
     {
         public string Name => name;
+        [JsonIgnore]
         public double DefaultValue = defaultValue;
 
         public double Value = value;
@@ -29,6 +32,7 @@ namespace RPGMod
     public class BoolStat(string name, bool defaultValue, bool value)
     {
         public string Name => name;
+        [JsonIgnore]
         public bool DefaultValue = defaultValue;
 
         public bool Value = value;
@@ -36,19 +40,43 @@ namespace RPGMod
 
     public class RpgUserData
     {
-        public static RpgUserData? Player;
+
+        private static RpgUserData Dummy = new()
+        {
+            PlayerName = "Player"
+        };
+
+        public static RpgUserData Player = Dummy;
 
         public List<ItemData> UniversalItems = [];
-        internal Dictionary<string, double> UnitedXP = new();
+        public Dictionary<string, double> UnitedXP = new();
 
-        public List<RpgGameData> RPGSaves = [];
+        [JsonIgnore]
+        public List<RpgGameData> Saves { get => JsonHelper.GetSavedRpgGameData(); }
 
-        internal string PlayerName = "";
-        
-        public static double UniversalXP { get => universalXP; }
-        private static double universalXP = 0;
+        public string PlayerName = "";
 
-        public static bool HasUniversalXP = false;
+        [JsonIgnore]
+        public Color NameColour = Color.white;
+
+        float R = 1;
+        float G = 1;
+        float B = 1;
+
+        public void UpdateColor(Color color)
+        {
+            NameColour = color;
+            R = color.r;
+            G = color.g;
+            B = color.b;
+        }
+
+        public double UniversalXP { get => universalXP; }
+        private double universalXP = 0;
+
+        public bool UnlockedMasteryForever = false;
+
+        public bool HasUniversalXP = false;
         public bool HasUnitedXP = false;
 
         /// <summary>
@@ -81,12 +109,26 @@ namespace RPGMod
             if (!UnitedXP.ContainsKey(baseId))
             {
                 UnitedXP.Add(baseId, amount * UnitedXPMutliper);
-                currData.UnitedXPGainedThisGame += amount * UnitedXPMutliper;
+                if (currData.UnitedXPGainedThisGame.ContainsKey(baseId))
+                {
+                    currData.UnitedXPGainedThisGame[baseId] += amount * UnitedXPMutliper;
+                }
+                else
+                {
+                    currData.UnitedXPGainedThisGame.Add(baseId, amount * UnitedXPMutliper);
+                }
             }
             else
             {
                 UnitedXP[baseId] += amount * UnitedXPMutliper;
-                currData.UnitedXPGainedThisGame += amount * UnitedXPMutliper;
+                if (currData.UnitedXPGainedThisGame.ContainsKey(baseId))
+                {
+                    currData.UnitedXPGainedThisGame[baseId] += amount * UnitedXPMutliper;
+                }
+                else
+                {
+                    currData.UnitedXPGainedThisGame.Add(baseId, amount * UnitedXPMutliper);
+                }
             }
         }
 
@@ -97,7 +139,7 @@ namespace RPGMod
 
         public double GetUnitedXP(string baseId)
         {
-            if(!UnitedXP.ContainsKey(baseId))
+            if (!UnitedXP.ContainsKey(baseId))
             {
                 UnitedXP.Add(baseId, 0);
                 return UnitedXP[baseId];
@@ -149,6 +191,19 @@ namespace RPGMod
             return list;
         }
 
+
+        public void UpdateItemData(ModItem item)
+        {
+            if(item.Universal)
+            {
+                ItemData itemData = UniversalItems.Find(data => data.ID == item.ItemName);
+                itemData.Amount = item.Amount;
+            }
+            else
+            {
+                ModHelper.Log<RPGMod>("Tried to add a normal item to player's universal items!");
+            }
+        }
     }
     public class RpgGameData(string mapName, string modeName, string difficuly, List<TowerXPData> xpData, int round = 0, bool ignoreSave = false)
     {
@@ -163,13 +218,11 @@ namespace RPGMod
         public List<ItemData> Items = [];
         public Dictionary<string, int> Stock = [];
 
-        [System.Text.Json.Serialization.JsonInclude]
-        internal List<NumberStat> NumberStats = [new("Stars", 0, 0), new("CashMulti", 1, 1), new("ExpMulti", 1, 1)];
-        [System.Text.Json.Serialization.JsonInclude]
-        internal List<BoolStat> BoolStats = [new("Mastery", false, false)];
+        public List<NumberStat> NumberStats = [new("Stars", 0, 0), new("CashMulti", 1, 1), new("ExpMulti", 1, 1)];
+        public List<BoolStat> BoolStats = [new("Mastery", false, false)];
 
         public double UniversalXPGainedThisGame = 0;
-        public double UnitedXPGainedThisGame = 0;
+        public Dictionary<string, double> UnitedXPGainedThisGame = [];
 
         public void Update()
         {
@@ -191,15 +244,54 @@ namespace RPGMod
 
             ModifiedTowerModels = LeveledTowers.Duplicate();
 
-            foreach(var item in ModContent.GetContent<ModItem>().FindAll(item_ => item_.ApplyMethod != ModItem.ItemApplyMethod.Never))
+            foreach (var item in ModContent.GetContent<ModItem>().FindAll(item_ => item_.ApplyMethod != ModItem.ItemApplyMethod.Never))
             {
                 item.ApplyToTowers(ModifiedTowerModels);
             }
 
             Game.instance.model.towers = ModifiedTowerModels.ToIl2CppReferenceArray();
+
+            foreach(var tts in InGame.instance.bridge.GetAllTowers().ToList())
+            {
+                tts.tower.UpdateRootModel(ModifiedTowerModels.Find(tm => tm.name == tts.tower.towerModel.name));
+            }
         }
 
-        public NumberStat GetNumberStat(string name) 
+        public static RpgGameData Create(string map, string gameMode, string diff, List<TowerXPData> xpData)
+        {
+            try
+            {
+                RpgGameData data = new(map, gameMode, diff, xpData);
+
+                data.GetBoolStat("Mastery").Value = Player.UnlockedMasteryForever;
+
+                currData.Update();
+                return data;
+            }
+            catch (Exception e)
+            {
+                ModHelper.Error<RPGMod>("Failed to create RpgGameData.");
+                ModHelper.Error<RPGMod>(e);
+                return null;
+            }
+        }
+
+        public static RpgGameData Create(string map, string gameMode, string diff)
+        {
+            return Create(map, gameMode, diff, TowerXPData.CreateTowerXPData(Game.instance.model.towers.ToList().FindAll(tower => !tower.isSubTower)));
+        }
+
+        public static RpgGameData Create(InGame inGame)
+        {
+            return Create(inGame, TowerXPData.CreateTowerXPData(Game.instance.model.towers.ToList().FindAll(tower => !tower.isSubTower)));
+        }
+
+        public static RpgGameData Create(InGame inGame, List<TowerXPData> xpData)
+        {
+            return Create(inGame.GetGameModel().map.mapName, inGame.GetGameModel().gameMode, inGame.GetGameModel().difficultyId, xpData);
+        }
+
+        public NumberStat GetNumberStat(string name)
         {
             return NumberStats.Find(x => x.Name == name);
         }
@@ -227,7 +319,7 @@ namespace RPGMod
 
         public void ResetBoolStats()
         {
-            foreach(var item in BoolStats)
+            foreach (var item in BoolStats)
             {
                 item.Value = item.DefaultValue;
             }
@@ -248,7 +340,7 @@ namespace RPGMod
             stat.Value = stat.DefaultValue;
         }
 
-        public void ResetBoolStat(string name) 
+        public void ResetBoolStat(string name)
         {
             var boolStat = GetBoolStat(name);
 
@@ -262,9 +354,9 @@ namespace RPGMod
 
         public int GetItemCountFromSave(string itemName)
         {
-            foreach(var item in Items)
+            foreach (var item in Items)
             {
-                if(item.ID == itemName)
+                if (item.ID == itemName)
                 {
                     return item.Amount;
                 }
@@ -276,13 +368,13 @@ namespace RPGMod
             {
                 return 0;
             }
-            else 
+            else
             {
                 return item_.StartAmount;
             }
         }
 
-        public static int GetItemCountFromSave(RpgGameData saveData ,string itemName)
+        public static int GetItemCountFromSave(RpgGameData saveData, string itemName)
         {
             return saveData.GetItemCountFromSave(itemName);
         }
@@ -317,7 +409,7 @@ namespace RPGMod
             {
                 var item = ModItem.GetItemWithName(itemData.ID);
 
-                if(item != null)
+                if (item != null)
                 {
                     //ModHelper.Log<RPGMod>($"Player had {item.Amount} of {item.ItemName}");
                     item.SetAmount(itemData.Amount);
@@ -336,11 +428,11 @@ namespace RPGMod
         {
             var savedItem = Items.Find(iD => iD.ID == id);
 
-            if(savedItem != null)
+            if (savedItem != null)
             {
                 savedItem.Amount = amount;
             }
-            else 
+            else
             {
                 Items.Add(new(id, amount));
             }
@@ -370,6 +462,26 @@ namespace RPGMod
 
         public string Name => BaseId.Spaced();
 
+        public static int CalculateLevel(double xp)
+        {
+            double xpToLevelUp = 75;
+            int level = 0;
+            while (xp >= xpToLevelUp)
+            {
+                if (level >= MaxLevel)
+                {
+                    level = MaxLevel;
+                    break;
+                }
+                level++;
+                xp -= xpToLevelUp;
+                xpToLevelUp *= XPCostMultiplier;
+                xpToLevelUp = Math.Truncate(xpToLevelUp);
+            }
+
+            return level;
+        }
+
         public static List<TowerXPData> CreateTowerXPData(List<TowerModel> towers, bool ignoreHeroCheck = false, bool ignoreBaseTowerCheck = false)
         {
             List<TowerXPData> list = [];
@@ -383,17 +495,21 @@ namespace RPGMod
                 if ((tower.towerSet == Il2CppAssets.Scripts.Models.TowerSets.TowerSet.Hero && InGame.instance.SelectedHero == tower.baseId) || ignoreHeroCheck
                     || tower.towerSet != Il2CppAssets.Scripts.Models.TowerSets.TowerSet.Hero)
                 {
-                    TowerIds.Add(tower.baseId);
-                    if(!RpgUserData.UnitedXP.ContainsKey(tower.baseId))
+                    if (!ignoreBaseTowerCheck)
                     {
-                        RpgUserData.UnitedXP.Add(tower.baseId, 0);
-                    }    
-                    var xpData = new TowerXPData(tower.baseId, RpgUserData.UnitedXP[tower.baseId] + RpgUserData.UniversalXP);
+                        if (!Player.UnitedXP.ContainsKey(tower.baseId))
+                        {
+                            Player.UnitedXP.Add(tower.baseId, 0);
+                        }
+                    }
+
+                    TowerIds.Add(tower.baseId);
+                    var xpData = new TowerXPData(tower.baseId, Player.UnitedXP[tower.baseId] + Player.UniversalXP);
                     if (!ignoreBaseTowerCheck)
                     {
                         xpData.LevelUp(Game.instance.model.towers.ToList().FindAll(tower_ => tower_.baseId == tower.baseId));
                     }
-                    list.Add(new(tower.baseId) );
+                    list.Add(new(tower.baseId));
                 }
             }
             return list;
@@ -516,10 +632,12 @@ namespace RPGMod
                 }
             }
         }
-       
+
 
         public int LevelUp(List<Tower> towers)
         {
+            int oldLevel = Level;
+
             while (XP >= XPToLevelUp)
             {
                 if (Level >= MaxLevel)
@@ -531,22 +649,16 @@ namespace RPGMod
                 XP -= XPToLevelUp;
                 XPToLevelUp *= XPCostMultiplier;
                 XPToLevelUp = Math.Truncate(XPToLevelUp);
-
-                foreach (var tower in towers)
-                {
-                    var towerModel = tower.rootModel.Duplicate().Cast<TowerModel>();
-
-                    ApplyLevel(towerModel, Level);
-
-                    tower.UpdateRootModel(towerModel);
-                }
             }
 
-            currData.Update();
+            if (oldLevel < Level)
+            {
+                currData.Update();
+            }
 
-            if (MasteryPanel != null)
+                if (MasteryPanel != null)
             { MasteryUI.Update(this, MasteryPanel); }
-
+            
             return Level;
         }
 
@@ -567,15 +679,14 @@ namespace RPGMod
                 foreach (var tower in towers)
                 {
                     ApplyLevel(tower, Level);
-
                 }
             }
 
-            currData.Update();
+            //currData.Update();
 
             if (MasteryPanel != null)
             { MasteryUI.Update(this, MasteryPanel); }
-
+            
             return Level;
         }
     }
