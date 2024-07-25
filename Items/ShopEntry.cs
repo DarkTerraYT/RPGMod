@@ -88,7 +88,7 @@ namespace RPGMod.Items
             {
                 Item.ChangeAmount(amount);
 
-                inGame.AddCash(totalCost);
+                inGame.AddCash(-totalCost);
 
                 if (Item.Universal && !SandboxFlag)
                 {

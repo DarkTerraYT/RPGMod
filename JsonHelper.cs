@@ -27,7 +27,7 @@ namespace RPGMod
 
             if (!data.IgnoreSave)
             {
-                if (SandboxFlag || data.ModeName != "Sandbox")
+                if (SandboxFlag || data.ModeName == "Sandbox")
                 {
                     ModHelper.Log<RPGMod>("Tried saving data for a sandbox game!");
                 }
