@@ -31,7 +31,7 @@ namespace RPGMod.Ui
         {
             var panel = UiRect.gameObject.AddModHelperPanel(new("Panel_RPGMod_Quests", UiRect.rect.right - 135, UiRect.rect.bottom - 750, 200), ModContent.GetSpriteReference<RPGMod>("empty-1x1").GUID);
             instance = panel.AddComponent<MasteryUI>();
-            if (currData.GetBoolStat("Mastery").Value)
+            if (currData.Mastery)
             {
                 var openButton = panel.AddButton(new("Button_Mastery", 0, 0, 200), ModContent.GetSpriteReference<RPGMod>("TowerMasteryBtn").GUID, new Action(() =>
                 {

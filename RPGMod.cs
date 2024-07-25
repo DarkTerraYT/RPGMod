@@ -118,9 +118,9 @@ public class RPGMod : BloonsTD6Mod
                             item.LoadAmountFromSave();
                         }
 
-                        if (!currData.GetBoolStat("Mastery").Value)
+                        if (!currData.Mastery)
                         {
-                            currData.GetBoolStat("Mastery").Value = Player.UnlockedMasteryForever;
+                            currData.Mastery = Player.UnlockedMasteryForever;
                         }
 
                         foreach (var data in currData.XPData)
@@ -179,7 +179,7 @@ public class RPGMod : BloonsTD6Mod
 
             if (__instance.GetGameModel().gameMode == GameModeType.Sandbox)
             {
-                currData.GetBoolStat("Mastery").Value = true;
+                currData.Mastery = true;
                 SandboxFlag = true;
             }
             else
@@ -226,11 +226,11 @@ public class RPGMod : BloonsTD6Mod
             Player.UniversalItems = uniItems;
             JsonHelper.SaveRpgGameData(currData);
             JsonHelper.SaveRpgUserData();
-            ModHelper.Log<RPGMod>("Saved!!");
+            //ModHelper.Log<RPGMod>("Saved!!");
         }
         else
         {
-            ModHelper.Log<RPGMod>("Sandbox!!");
+            //ModHelper.Log<RPGMod>("Sandbox!!");
         }
     }
 
@@ -373,7 +373,7 @@ public class RPGMod : BloonsTD6Mod
         [HarmonyPostfix]
         public static bool Prefix(ref double c)
         {
-            c *= currData.GetNumberStat("CashMulti").Value;
+            c *= currData.CashMulti;
 
             return true;
         }
@@ -463,7 +463,7 @@ public class RPGMod : BloonsTD6Mod
     /// <returns>new level, 0 if mastery isn't unlocked</returns>
     public static int AddXP(Tower tower, double amount)
     {
-        if (currData.GetBoolStat("Mastery").Value)
+        if (currData.Mastery)
         {
             TowerXPData xpData = currData.XPData[0];
             foreach (var item in currData.XPData)
@@ -475,7 +475,7 @@ public class RPGMod : BloonsTD6Mod
                 }
             }
 
-            double total = amount * XPMutliplier * currData.GetNumberStat(RpgGameData.EXPMULTI).Value;
+            double total = amount * XPMutliplier * currData.ExpMutli;
 
             if (!SandboxFlag)
             {

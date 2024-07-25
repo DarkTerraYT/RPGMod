@@ -208,9 +208,6 @@ namespace RPGMod
     }
     public class RpgGameData(string mapName, string modeName, string difficuly, List<TowerXPData> xpData, int round = 0, bool ignoreSave = false)
     {
-        public const string EXPMULTI = "ExpMulti";
-        public const string CASHMULTI = "CashMulti";
-
         public string MapName = mapName;
         public string ModeName = modeName;
         public string Difficuly = difficuly;
@@ -219,11 +216,20 @@ namespace RPGMod
         public List<ItemData> Items = [];
         public Dictionary<string, int> Stock = [];
 
-        public List<NumberStat> NumberStats = [new("Stars", 0, 0), new("CashMulti", 1, 1), new("ExpMulti", 1, 1)];
-        public List<BoolStat> BoolStats = [new("Mastery", false, false)];
+        public double CashMulti = 1;
+        public double ExpMutli = 1;
+
+        public bool Mastery = false;
 
         public double UniversalXPGainedThisGame = 0;
         public Dictionary<string, double> UnitedXPGainedThisGame = [];
+
+        public void ResetStats()
+        {
+            CashMulti = 1;
+            ExpMutli = 1;
+            Mastery = Player.UnlockedMasteryForever;
+        }
 
         public void Update()
         {
@@ -254,7 +260,11 @@ namespace RPGMod
 
             foreach(var tts in InGame.instance.bridge.GetAllTowers().ToList())
             {
-                tts.tower.UpdateRootModel(ModifiedTowerModels.Find(tm => tm.name == tts.tower.towerModel.name));
+                var newTm = ModifiedTowerModels.Find(tm => tm.name == tts.tower.towerModel.name);
+                if (newTm != null)
+                {
+                    tts.tower.UpdateRootModel(newTm);
+                }
             }
         }
 
@@ -264,7 +274,7 @@ namespace RPGMod
             {
                 RpgGameData data = new(map, gameMode, diff, xpData);
 
-                data.GetBoolStat("Mastery").Value = Player.UnlockedMasteryForever;
+                data.Mastery = Player.UnlockedMasteryForever;
 
                 currData.Update();
                 return data;
@@ -290,62 +300,6 @@ namespace RPGMod
         public static RpgGameData Create(InGame inGame, List<TowerXPData> xpData)
         {
             return Create(inGame.GetGameModel().map.mapName, inGame.GetGameModel().gameMode, inGame.GetGameModel().difficultyId, xpData);
-        }
-
-        public NumberStat GetNumberStat(string name)
-        {
-            return NumberStats.Find(x => x.Name == name);
-        }
-
-        public void ResetNumberStat(string name)
-        {
-            var numberStat = GetNumberStat(name);
-
-            ResetNumberStat(numberStat);
-        }
-
-        public void ResetStats()
-        {
-            ResetNumberStats();
-            ResetBoolStats();
-        }
-
-        public void ResetNumberStats()
-        {
-            foreach (var item in NumberStats)
-            {
-                item.Value = item.DefaultValue;
-            }
-        }
-
-        public void ResetBoolStats()
-        {
-            foreach (var item in BoolStats)
-            {
-                item.Value = item.DefaultValue;
-            }
-        }
-
-        public void ResetNumberStat(NumberStat stat)
-        {
-            stat.Value = stat.DefaultValue;
-        }
-
-        public BoolStat GetBoolStat(string name)
-        {
-            return BoolStats.Find(x => x.Name == name);
-        }
-
-        public void ResetBoolStat(BoolStat stat)
-        {
-            stat.Value = stat.DefaultValue;
-        }
-
-        public void ResetBoolStat(string name)
-        {
-            var boolStat = GetBoolStat(name);
-
-            ResetBoolStat(boolStat);
         }
 
         [JsonIgnore]

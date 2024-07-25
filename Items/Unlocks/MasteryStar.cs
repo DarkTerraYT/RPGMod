@@ -29,7 +29,7 @@ namespace RPGMod.Items.Universal
 
         public override void OnItemBuy(Game game, InGame inGame, int amount)
         {
-            currData.GetBoolStat("Mastery").Value = true;
+            currData.Mastery = true;
         }
     }
 }

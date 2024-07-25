@@ -23,7 +23,7 @@ namespace RPGMod.Items.Relics
 
         public override void OnItemBuy(Game game, InGame inGame, int amount)
         {
-            currData.GetNumberStat(RpgGameData.EXPMULTI).Value += .25;
+            currData.ExpMutli += .25;
         }
     }
 }

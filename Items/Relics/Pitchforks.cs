@@ -20,7 +20,7 @@ namespace RPGMod.Items.Relics
 
         public override void OnItemBuy(Game game, InGame inGame, int amount)
         {
-            currData.GetNumberStat("CashMulti").Value += .3;
+            currData.CashMulti += .3;
         }
     }
 
@@ -41,7 +41,7 @@ namespace RPGMod.Items.Relics
 
         public override void OnItemBuy(Game game, InGame inGame, int amount)
         {
-            currData.GetNumberStat("CashMulti").Value += .4;
+            currData.CashMulti += .4;
         }
     }
 
@@ -62,7 +62,7 @@ namespace RPGMod.Items.Relics
 
         public override void OnItemBuy(Game game, InGame inGame, int amount)
         {
-            currData.GetNumberStat("CashMulti").Value += .5;
+            currData.CashMulti += .5;
         }
     }
 }
